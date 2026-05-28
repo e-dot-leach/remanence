@@ -1,0 +1,35 @@
+element.style {
+    pointer-events: auto;
+}
+body {
+    background-color: #e6dab4;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 14px;
+    color: #800707;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+}
+
+/* no underlined link */
+a:link {
+  text-decoration: none;
+}
+
+/* unvisited link */
+a:link {
+  color: #de1e1e;
+}
+
+/* visited link */
+a:visited {
+  color: #480606;
+}
+
+/* mouse over link */
+a:hover {
+  color: #ff1010;
+}

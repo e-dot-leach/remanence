@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>info — not a record (for marion)</title>
+<link href="https://fonts.googleapis.com/css2?family=Encode+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'VCR OSD Mono';
+    src: url('assets/fonts/vcr-osd-mono.regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f8f8;
+    --fg: #1a1a1a;
+    --muted: #888;
+    --faint: #ccc;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Encode Sans', sans-serif;
+    font-size: 0.78rem;
+    line-height: 1.75;
+  }
+
+  body {
+    padding: 2.4rem 2.2rem 3rem;
+  }
+
+  h1 {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: lowercase;
+    margin-bottom: 1.6rem;
+    color: var(--fg);
+  }
+
+  .intro {
+    color: var(--muted);
+    margin-bottom: 1.8rem;
+    max-width: 480px;
+  }
+
+  .doc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-width: 520px;
+  }
+
+  .doc-list li {
+    border-top: 1px solid var(--faint);
+    padding: 0.65rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .doc-list li:last-child {
+    border-bottom: 1px solid var(--faint);
+  }
+
+  .doc-title {
+    color: var(--fg);
+  }
+
+  .doc-title a {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .doc-title a:hover {
+    color: var(--muted);
+  }
+
+  .doc-meta {
+    color: var(--muted);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+
+  .doc-topics {
+    color: var(--faint);
+    font-size: 0.65rem;
+    letter-spacing: 0.03em;
+  }
+
+  .doc-embed {
+    margin-top: 0.9rem;
+    display: block;
+    width: 100%;
+    height: 520px;
+    border: 1px solid var(--faint);
+  }
+
+  .doc-embed-fallback {
+    padding: 1rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+
+  .doc-embed-fallback a {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>info</h1>
+  <ul class="doc-list">
+
+    <li>
+      <span class="doc-title"><a href="https://archive.org/details/100-hq-436700/100-HQ-436700%20EBF%2018/page/n21/mode/2up" target="_blank" rel="noopener">Marion Stokes FBI File 100-HQ-436700</a></span>
+      <span class="doc-meta">FBI Reading Room</span>
+      <span class="doc-topics">topics: marion stokes &middot; marion metelits &middot; marion butler &middot; fbi file &middot; fair play for cuba</span>
+      <object class="doc-embed" data="pdfs/100-HQ-436700-EBF-18.pdf" type="application/pdf">
+        <p class="doc-embed-fallback">PDF could not be displayed. <a href="pdfs/100-HQ-436700-EBF-18.pdf" target="_blank">Open in new tab</a>.</p>
+      </object>
+    </li>
+
+    <li>
+      <span class="doc-title"><a href="https://archive.org/details/cia-readingroom-document-00548292/page/n33/mode/2up" target="_blank" rel="noopener">CIA Reading Room 00548292: HSCA Chrono for 1977&ndash;1978 of Reports and Requests</a></span>
+      <span class="doc-meta">CIA Reading Room</span>
+      <span class="doc-topics">topics: CIA reading room &middot; HSCA &middot; JFK assassination records</span>
+      <object class="doc-embed" data="pdfs/00548292.pdf" type="application/pdf">
+        <p class="doc-embed-fallback">PDF could not be displayed. <a href="pdfs/00548292.pdf" target="_blank">Open in new tab</a>.</p>
+      </object>
+    </li>
+
+  </ul>
+
+</body>
+</html>
