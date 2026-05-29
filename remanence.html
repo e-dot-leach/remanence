@@ -126,6 +126,11 @@
   }
 
   .thumb-item.dismissed {
+    pointer-events: auto;
+    cursor: not-allowed !important;
+  }
+
+  .thumb-item.dismissed * {
     pointer-events: none;
   }
 
@@ -173,7 +178,7 @@
     width: 100%;
     padding: 0 40px;
     margin-top: 28px;
-    cursor: pointer;
+    cursor: crosshair;
   }
 
   .progress-bar-bg {
@@ -394,7 +399,7 @@
     color: var(--fg);
     background: none;
     border: none;
-    cursor: pointer;
+    cursor: help;
     padding: 0;
     z-index: 100;
     opacity: 0.55;
@@ -679,13 +684,13 @@ function init(){
     updateCenterDate();
     if (recordMode) {
       infoCia.innerHTML = buildCiaList(entry);
-      item.style.cursor = 'pointer';
+      item.style.cursor = 'default';
     } else {
       const dateLabel = stripMonthYearComma(entry.title.replace(/^Marion Stokes Journal\s*\(?(.*?)\)?$/, '$1').trim());
       infoDate.innerHTML = `<span class="label">date</span>${dateLabel}`;
       infoViews.innerHTML = `<span class="label">views</span>${entry.views}`;
       infoUrl.innerHTML = `<span class="label">url</span><a href="${entry.url}" target="_blank" rel="noopener">${entry.url}</a>`;
-      item.style.cursor = 'default';
+      item.style.cursor = 'pointer';
     }
   }
 
