@@ -1,35 +1,962 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="stylesheet" href="styles.css">
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>remanence (raking the index)</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>not a record (for marion)</title>
+<link href="https://fonts.googleapis.com/css2?family=Encode+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'VCR OSD Mono';
+    src: url('assets/fonts/vcr-osd-mono.regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f8f8;
+    --text: #1a1a1a;
+    --muted: #888;
+    --faint: #ccc;
+    --bar-fill: #1a1a1a;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Encode Sans', sans-serif;
+    overflow: hidden;
+  }
+
+  .page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    position: relative;
+  }
+
+  /* CONTROLS */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 28px;
+    flex-shrink: 0;
+    width: 100%;
+    padding: 0 40px;
+    position: relative;
+  }
+
+  .controls-btn-group {
+    display: flex;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .controls button {
+    background: none;
+    border: none;
+    font-family: 'Encode Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #btnRewind { cursor: w-resize; }
+  #btnFwd    { cursor: e-resize; }
+  #btnRecord { cursor: pointer; }
+
+  .controls button:hover,
+  .controls button.active {
+    color: var(--text);
+  }
+
+  /* SCROLL STRIP */
+  .strip-outer {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .strip-track {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    will-change: transform;
+    user-select: none;
+  }
+
+  /* THUMBNAIL ITEM */
+  .thumb-item {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    cursor: default;
+  }
+
+  .thumb-img-wrap {
+    width: 110px;
+    height: 146px;
+    overflow: hidden;
+  }
+
+  .thumb-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: filter 0.5s ease, opacity 0.5s ease;
+  }
+
+  .thumb-item.dismissed .thumb-img-wrap img {
+    filter: grayscale(100%) brightness(0.75);
+    opacity: 0.5;
+  }
+
+  .thumb-item.dismissed {
+    pointer-events: auto;
+    cursor: not-allowed !important;
+  }
+
+  .thumb-item.dismissed * {
+    pointer-events: none;
+  }
+
+  .thumb-item.dismissed .thumb-number {
+    text-decoration: line-through;
+  }
+
+  .thumb-number {
+    margin-top: 6px;
+    font-size: 0.48rem;
+    font-weight: 300;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+    font-family: 'Encode Sans', sans-serif;
+    transition: color 0.15s;
+  }
+
+  .thumb-item:hover .thumb-number {
+    color: var(--muted);
+  }
+
+  /* EDGE FADES */
+  .strip-outer::before,
+  .strip-outer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 100px;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .strip-outer::before {
+    left: 0;
+    background: linear-gradient(to right, var(--bg), transparent);
+  }
+  .strip-outer::after {
+    right: 0;
+    background: linear-gradient(to left, var(--bg), transparent);
+  }
+
+  /* PLAY/PROGRESS BAR */
+  .progress-wrap {
+    flex-shrink: 0;
+    width: 100%;
+    padding: 0 40px;
+    margin-top: 28px;
+    cursor: crosshair;
+  }
+
+  .progress-bar-bg {
+    width: 100%;
+    height: 2px;
+    background: var(--faint);
+    position: relative;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--bar-fill);
+    width: 0%;
+    pointer-events: none;
+  }
+
+  .progress-time {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 7px;
+    font-family: 'VCR OSD Mono', 'DM Mono', 'Courier New', monospace;
+    font-size: 0.58rem;
+    font-weight: 300;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  /* INFO PANEL: play mode and "cia/record" mode */
+  .info-panel {
+    flex-shrink: 0;
+    height: 72px;
+    margin-top: 20px;
+    width: 100%;
+    padding: 0 40px;
+    position: relative;
+  }
+
+  .info-panel.mode-record {
+    overflow: visible;
+  }
+
+  .info-cia {
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+    position: absolute;
+    left: 40px;
+    right: 40px;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+    overflow-y: auto;
+    max-height: calc(100vh - 400px);
+    padding-bottom: 8px;
+  }
+
+  /* NORMAL MODE: single-entry info */
+  .info-normal {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .info-row {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .info-row span.label {
+    font-weight: 300;
+    color: var(--muted);
+    margin-right: 8px;
+  }
+
+  .info-row a {
+    color: #0047AB;
+    text-decoration: underline;
+  }
+
+  .info-row a:visited { color: #0047AB; }
+
+  /* RECORD MODE: CIA doc list */
+  .cia-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 6px;
+  }
+
+  .cia-thumb {
+    width: 36px;
+    height: 48px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .cia-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  /* Mode Toggling */
+  .mode-normal .info-normal { display: flex; }
+  .mode-normal .info-cia { display: none; }
+  .mode-record .info-normal { display: none; }
+  .mode-record .info-cia { display: flex; }
+
+  .info-panel.empty .info-normal { opacity: 0; }
+  .info-panel.empty .info-cia { opacity: 0; }
+
+  #centerDate {
+    font-family: 'VCR OSD Mono', 'DM Mono', 'Courier New', monospace;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    position: absolute;
+    right: 40px;
+  }
+
+  /* MOBILE */
+  @media (max-width: 600px) {
+    .controls {
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px;
+      margin-bottom: 16px;
+    }
+
+    .controls-btn-group {
+      gap: 32px;
+    }
+
+    /* Hide full button text, show short label via data-short attribute */
+    .controls button {
+      font-size: 0;
+    }
+
+    .controls button::after {
+      font-size: 0.72rem;
+      content: attr(data-short);
+    }
+
+    #centerDate {
+      font-size: 0.65rem;
+      position: static;
+      right: auto;
+    }
+
+    .progress-wrap {
+      padding: 0 20px;
+      margin-top: 20px;
+    }
+
+    .info-panel {
+      padding: 0 20px;
+      height: auto;
+      min-height: 60px;
+    }
+
+    .info-cia {
+      left: 20px;
+      right: 20px;
+    }
+
+    .info-row {
+      font-size: 0.62rem;
+    }
+  }
+
+  /* ESSAY OVERLAY */
+  .thumb-essay {
+    display: flex;
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 7px 8px;
+    background: transparent;
+    font-family: 'Encode Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--text);
+    letter-spacing: 0.01em;
+    z-index: 5;
+    cursor: pointer;
+    align-items: center;
+    text-align: left;
+    scrollbar-width: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.2s ease;
+  }
+  .thumb-essay::-webkit-scrollbar { display: none; }
+  .thumb-img-wrap { position: relative; }
+  .thumb-essay.visible { opacity: 1; pointer-events: none; }
+
+  /* CORNER BUTTONS */
+  .corner-btn {
+    position: fixed;
+    top: 1.1rem;
+    font-family: 'Encode Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+    color: var(--fg);
+    background: none;
+    border: none;
+    cursor: help;
+    padding: 0;
+    z-index: 100;
+    opacity: 0.55;
+    transition: opacity 0.15s;
+  }
+  .corner-btn:hover { opacity: 1; }
+  #btnGuide { left: 1.4rem; }
+  #btnInfo  { right: 1.4rem; }
+
+</style>
 </head>
 <body>
- <h1><i>remanence (raking the index)</i></h1>
- <div>
- <p><b>Q: What happens when publicly archived material is missing?<br>A: I take a class to start throwing a lot of time and theory at it.</b></p>
- <img src="images/marionstokesjournal1967-06-17__ia_thumb.jpg" height="230" alt="Thumbnail of Marion Stokes Journal from June 17, 1967"> <img src="images/marionstokesjournal1970-08-29__ia_thumb.jpg" height="230" alt="Thumbnail of Marion Stokes Journal from August 29, 1970"><br><img src="images/marionstokesjournal1974-09-16__ia_thumb.jpg" height="230" alt="Thumbnail of Marion Stokes Journal from September 16, 1974"> <img src="images/marionstokesjournal1982-12-19__ia_thumb.jpg" height="230" alt="Thumbnail of Marion Stokes Journal from December 19, 1982">
- <h2>(un)recording</h2>
-<p><b>You cannot see the records.</b> The BookReader user interface presents a black void spanning across the browser window. <i>Okay, fine.</i> Scroll down to the “DOWNLOAD OPTIONS.” Click the hyperlink (“4 original”) to download the item. Unzip the folder. Now you have a folder containing an .SQLITE file, an .XML file, and a .JPG file (the thumbnail).</p>
- <p>462 of the 469 files included in the <a href="https://archive.org/details/marionstokespersonalpapers">“Marion Stokes Personal Papers” collection</a> are listed in a gallery by their thumbnail image. The thumbnails are specific and unique to each entry: perforated for spiral-bound journals and five-ring binders, sun-damaged, stained, folded, limited evidence of doodling, and on and on.</p>
-<p>What does exist is the architecture of the paper’s digital preservation. The metadata for each item in the collection includes: the republisher operator (<a href="https://archive.org/details/@jackiem">associate-jackie-jay</a>), the access permissions (tru), the time and date of the entry's addition, the documenting camera (Camera Sony Alpha-A7r), the location of the item's scanning (San Francisco), the size of the corresponding (inaccessible) item, and on and on.</p>
- <p>Marion Stokes was a recorder. (See: <a href="https://recorderfilm.com/">Matt Wolf's documentary</a>.) Her life was dedicated to gathering and preserving information. Her records exist (for now). The archival index exists (for now). They just aren't speaking to each other.</p>
- <h2>
- ☞ indexing.html
- </h2>
- <p><b>Did you know that "index" originally referred to the <i>index</i> finger?</b></p>
- <p>The word "index" is derived from the Latin <i>index</i>, meaning "one who points out." The meaning eventually shifted to signify any indicator, sign, or marker. I know this because I read a paper by Hans Wellisch—a librarian, Library and Information Science educator, and <i>indexer</i>—about <a href="https://www.liverpooluniversitypress.co.uk/doi/pdf/10.3828/indexer.1983.13.3.2">the etymological origins and uses of the word</a>. The word is derived from <i>indicare</i> ("to make known or reveal" or "to divulge or betray") which itself is closely related to <i>indicere</i> ("to proclaim, inflict, or declare (war)").</p>
- <p>In the last section of "Index: the word, its meaning, history and uses", <i>Odds and Ends</i>, Wellisch lists "facetious, derogatory, and otherwise unclassifiable" uses of the word index. These derogatory terms include: <i>index-hunter</i> (1751), <i>index-learning</i> (1728), and <i>index-raker</i> (1876). I like these words, even though I've struggled to find their original contexts (because I'm not <a href="https://www.oed.com/dictionary/index-raker_n?tab=meaning_and_use&tl=true">buying a subscription to the Oxford English Dictionary</a>).</p>
- <p>In building the <a href="https://info.cern.ch/">first web server at CERN</a>, Tim Berners-Lee followed the logic of a library system: a directory. (I'd tell you more about it but I'm not <a href="https://pixicstudio.medium.com/the-story-behind-index-html-c700af679069">buying a subscription to Medium</a>.) The logic and impact of the index, as explored in Dennis Duncan's "Index, A History of the," has been criticized from the Printing Revolution to the age of the search engine. In both the 18th and 21st century, there is a fear that the index kills curiosity and prioritizes the simulacrum. Thus: the index-raker.</p>
- <p>What does it mean to be an index-raker in the postinternet era? (Is <i>metadata-raker</i> any better?) If the index simply <a href="https://www.youtube.com/watch?v=jNQXAC9IVRw">points to the material</a>, could index-raking be a form of tending and care? Is it <a href=”https://www.youtube.com/shorts/o49y0XZ1oCw”>an optimistic if futile act</a> in service of the non-living index-hunters and -learners?</p>
+<div class="page">
+
+  <!-- CORNER BUTTONS -->
+  <button class="corner-btn" id="btnInfo">info</button>
+  <button class="corner-btn" id="btnGuide">guide</button>
+
+
+  <div class="controls">
+    <div class="controls-btn-group">
+      <button id="btnRewind" data-full="rewind" data-short="rew">rewind</button>
+      <button id="btnRecord" data-full="record" data-short="rec">record</button>
+      <button id="btnFwd" data-full="fast-forward" data-short="fwd">fast-forward</button>
+    </div>
+    <span id="centerDate"></span>
+  </div>
+
+  <div class="strip-outer" id="stripOuter">
+    <div class="strip-track" id="stripTrack"></div>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar-bg" id="progressBg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-time">
+      <span id="timeCurrent">0:00:00</span>
+      <span id="timeTotal"></span>
+    </div>
+  </div>
+
+  <div class="info-panel mode-normal empty" id="infoPanel">
+    <div class="info-normal">
+      <div class="info-row" id="infoDate"><span class="label">date</span></div>
+      <div class="info-row" id="infoViews"><span class="label">views</span></div>
+      <div class="info-row" id="infoUrl"></div>
+    </div>
+    <div class="info-cia" id="infoCia"></div>
+  </div>
+
 </div>
-<div>
-<form action="/url" method="GET">
-<p>Please enter your full name:</p>
-<input type="text" name="name" placeholder="Sorry, all I can let you know is that it is currently publicly unavailable."></form>
-</div>
+
+<script src="./Stuk-jszip-643714a/dist/jszip.js"></script>
+
+<script>
+
+let DATA = [];
+let CIA = [];
+
+const ESSAY_TEXT = `Remanence refers to the residual magnetism left in a ferromagnetic material (like iron, nickel, cobalt, and other rare-earth metals or alloys) after a magnetomotive force has been removed. On a magnetized medium, information can be stored on a physical storage medium without constant power: non-volatile memory. The same fundamental principle links all forms of magnetic storage: floppy disks, videocassettes, and hard disk drives. The magnetic mylar tape in VHS cassettes suspends magnetic particles (like ferric oxide, doped iron oxide, chromium dioxide, and metallic particles like elemental iron, cobalt, and/or nickel) in a polymer binder. Chromium, found primarily in southern Africa and Zimbabwe, supposedly produces a cleaner sound quality than ferric oxides but creates more toxic by-products. Manufacturers began blending chrome-oxide with cobalt-modified iron oxides on magnetic tapes. Hard disk drives also shifted from an iron-oxide base to a cobalt-based alloy. The Democratic Republic of the Congo produces over sixty percent of the world's cobalt. There are many possible points of failure for VHS cassettes (mold growth, sticky shed syndrome, oxide shedding, physical damage) but all magnetic media has a degradation limit. Eventually, the magnetic information will lose its charge. Iron oxide and cobalt-modified iron oxide are the most stable magnetic particles, but are often used in lower grade VHS videotapes. Over time, the magnetic particles in the binding lose their charge in a process known as remanence decay: colors fade, pictures blur, static noise spreads. The information is still “there” but has become unreadable. Depending on their storage and usage conditions, you’ll find a persistent argument that VHS cassettes only last ten to thirty years before significant degradation. (Of course, the loudest of these arguments come from home video digitization services.) With digital information, data remanence refers to the residual presence of data even after it has been erased. The physical properties of storage media can keep a memory of previously written data. Often, deleted data will remain—even if the information appears “gone”—until the operating system uses the space and rewrites new data over it. In the digital age, data remanence can make deleted sensitive information vulnerable to exposure. To ensure that deleted information is truly gone, it must be cleared, purged, destroyed, overwritten, or encrypted. Before its use in the field of magnetism, the word “remanence” was used to refer to the lasting effect or residual presence of something: something enduring, a kind of persisting, even the remaining presence of a disease. Remanence comes from the word “remain”: that which is left behind or what is left after life is gone. Nothing remains.`;
+
+Promise.all([
+  fetch('assets/marion_journal.json').then(res => res.json()),
+  fetch('assets/cia_journal_links.json').then(res => res.json())
+]).then(([data, cia]) => {
+  DATA = data;
+  CIA = cia;
+  init();
+});
+
+const track = document.getElementById('stripTrack');
+const centerDateEl = document.getElementById('centerDate');
+const stripOuter = document.getElementById('stripOuter');
+
+const panel = document.getElementById('infoPanel');
+const infoDate = document.getElementById('infoDate');
+const infoViews = document.getElementById('infoViews');
+const infoUrl = document.getElementById('infoUrl');
+const infoCia = document.getElementById('infoCia');
+const btnRewind = document.getElementById('btnRewind');
+const btnRecord = document.getElementById('btnRecord');
+const btnFwd = document.getElementById('btnFwd');
+const progressBg = document.getElementById('progressBg');
+const progressFill = document.getElementById('progressFill');
+const timeCurrent = document.getElementById('timeCurrent');
+const timeTotal = document.getElementById('timeTotal');
+const progressWrap = document.getElementById('progressWrap');
+
+const THUMB_W = 110;
+const GAP = 12;
+const STRIDE = THUMB_W + GAP;
+const BASE_SPEED = 0.18;
+const SCRUB_SPEED = 6;
+
+let recordMode = false;
+let pos, speed, paused;
+
+function formatTime(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+// DATE FORMATS: "MONTH DAY, YEAR" or "MONTH YEAR"
+const MONTHS = ['January','February','March','April','May','June',
+               'July','August','September','October','November','December'];
+
+function stripMonthYearComma(s) {
+  // "February, 1960" -> "February 1960"
+  return s.replace(/^([A-Za-z]+),\s*(\d{4})$/, '$1 $2');
+}
+
+function formatEntryDate(entry) {
+  const label = entry.title.replace(/^Marion Stokes Journal\s*\(?(.*?)\)?$/, '$1').trim();
+  if (label) return stripMonthYearComma(label);
+  // Fallback: parse from entry.date field (YYYY-MM-DD or YYYY-MM)
+  if (!entry.date) return '';
+  const full = entry.date.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (full) {
+    const d = new Date(parseInt(full[1]), parseInt(full[2]) - 1, parseInt(full[3]));
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+  const partial = entry.date.match(/(\d{4})-(\d{2})/);
+  if (partial) {
+    return `${MONTHS[parseInt(partial[2]) - 1]} ${partial[1]}`;
+  }
+  return entry.date;
+}
+
+// Build CIA list HTML for a journal entry
+function buildCiaList(entry) {
+  const docs = CIA[entry.identifier] || [];
+  const dateHeader = `<div class="info-row" style="margin-bottom:8px;"><span class="label">date</span>${formatEntryDate(entry)}</div>`;
+  if (!docs.length) return dateHeader + '<div class="cia-row" style="color:var(--muted);font-size:0.62rem;">no linked CIA documents</div>';
+  
+  const sample = docs
+    .slice()
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 5);
+  
+  return dateHeader + sample.map(d => `
+    <div class="cia-row">
+      <img class="cia-thumb" src="${d.thumb_url}" alt="" loading="lazy">
+      <div class="cia-info">
+        <div class="info-row"><span class="label">title</span>${d.name}</div>
+        <div class="info-row"><span class="label">views</span>${d.views}</div>
+        <div class="info-row"><span class="label">url</span><a href="${d.url}" target="_blank" rel="noopener">${d.url}</a></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// DATE FORMAT: Change "date:[1960-02-06 AND ...]" to MM-YYYY
+function parseMmYear(date) {
+  if (!date) return '';
+  const match = date.match(/(\d{4})-(\d{2})/);
+  if (!match) return date;
+  return `${match[2]}-${match[1]}`;
+}
+
+function updateCenterDate() {
+  const rect = stripOuter.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const items = track.querySelectorAll('.thumb-item:not(.dismissed)');
+  let closest = null, closestDist = Infinity;
+  items.forEach(item => {
+    const r = item.getBoundingClientRect();
+    const itemCenter = r.left + r.width / 2;
+    const dist = Math.abs(itemCenter - centerX);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closest = item;
+    }
+  });
+  if (closest) {
+    const idx = parseInt(closest.dataset.dataIdx);
+    const entry = DATA[idx];
+    if (entry) {
+      centerDateEl.textContent = parseMmYear(entry.date) || entry.title;
+    }
+  }
+}
+
+// Generate downloadable CSV text for a journal entry's CIA docs
+function buildCsv(entry) {
+  const docs = CIA[entry.identifier] || [];
+  const header = 'name,views,url,thumb,date\n';
+  const rows = docs.map(d =>
+    `"${d.name.replace(/"/g,'""')}",${d.views},"${d.url}","${d.thumb_url}","${d.date}"`
+  ).join('\n');
+  return header + rows;
+}
+
+// Download a text file
+function downloadCsv(filename, content) {
+  const blob = new Blob([content], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function buildZip(filename, entry){
+  const docs = CIA[entry.identifier] || [];
+  var zip = new JSZip();
+  var promise = null;
+  if (JSZip.support.uint8array) {
+    promise = zip.generateAsync({type : "uint8array"});
+  } else {
+    promise = zip.generateAsync({type : "string"});
+  }
+
+  var arrayLength = docs.length;
+  for (var i = 0; i < arrayLength; i++) {
+    const file = fetch(docs[i].pdf_url).then(r => r.blob());
+    zip.file(`a`, file);
+  }
+
+  zip.generateAsync({type:"blob"})
+    .then(function (blob) {
+    saveAs(blob, filename);
+  });
+}
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const img = e.target;
+      img.src = img.dataset.src;
+      observer.unobserve(img);
+    }
+  });
+}, { rootMargin: '200px' });
+
+function init(){
+  const singleSetWidth = DATA.length * STRIDE;
+  const totalSeconds = Math.round(singleSetWidth / (BASE_SPEED * 60));
+  timeTotal.textContent = formatTime(totalSeconds);
+  // Build strip items — 3 copies for seamless loop
+  // Tracks whether mouse is over a thumbnail or the info panel
+  let hoverThumb = false;
+  let hoverPanel = false;
+  let resumeTimer = null;
+  const RESUME_DELAY = 2000; // ms after leaving both before scroll resumes
+
+  function cancelResume() {
+    if (resumeTimer) { clearTimeout(resumeTimer); resumeTimer = null; }
+  }
+
+  function scheduleResume() {
+    cancelResume();
+    resumeTimer = setTimeout(() => {
+      if (!hoverThumb && !hoverPanel) {
+        paused = false;
+        panel.classList.add('empty');
+        infoDate.innerHTML = `<span class="label">date</span>`;
+        infoViews.innerHTML = `<span class="label">views</span>`;
+        infoUrl.innerHTML = '';
+        infoCia.innerHTML = '';
+      }
+    }, RESUME_DELAY);
+  }
+
+  // Pause scroll when mouse enters the info panel
+  panel.addEventListener('mouseenter', () => {
+    hoverPanel = true;
+    cancelResume();
+  });
+  panel.addEventListener('mouseleave', () => {
+    hoverPanel = false;
+    if (!hoverThumb) scheduleResume();
+  });
+
+  function showInfo(entry, item) {
+    if (item.classList.contains('dismissed')) return;
+    cancelResume();
+    paused = true;
+    panel.classList.remove('empty');
+    updateCenterDate();
+    if (recordMode) {
+      infoCia.innerHTML = buildCiaList(entry);
+      item.style.cursor = 'pointer';
+    } else {
+      let dateLabel = stripMonthYearComma(entry.title.replace(/^Marion Stokes Journal\s*\(?(.*?)\)?$/, '$1').trim());
+      const DATE_OVERRIDES = {
+        'December 19, 1982) and Post-Its from (November 28, and 29, and December 1, 4, 5, 6, 18, 19, 22, and 24, 1982':
+          'December 19, 1982, and Post-Its from Nov. 28 and 29, and Dec. 1, 4, 5, 6, 18, 19, 22, and 24, 1982'
+      };
+      if (DATE_OVERRIDES[dateLabel]) dateLabel = DATE_OVERRIDES[dateLabel];
+      infoDate.innerHTML = `<span class="label">date</span>${dateLabel}`;
+      infoViews.innerHTML = `<span class="label">views</span>${entry.views}`;
+      infoUrl.innerHTML = `<span class="label">url</span><a href="${entry.url}" target="_blank" rel="noopener">${entry.url}</a>`;
+      item.style.cursor = 'pointer';
+    }
+  }
+
+  function startHideInfo(item) {
+    hoverThumb = false;
+    item.style.cursor = 'default';
+    if (!hoverPanel) scheduleResume();
+  }
+
+  function hideInfo(item) {
+    paused = false;
+    panel.classList.add('empty');
+    infoDate.innerHTML = `<span class="label">date</span>`;
+    infoViews.innerHTML = `<span class="label">views</span>`;
+    infoUrl.innerHTML = '';
+    infoCia.innerHTML = '';
+    item.style.cursor = 'default';
+  }
+
+  function doAction(entry, item) {
+    if (recordMode) {
+      buildZip(`${entry.title.replace(/[^a-z0-9]/gi, '_')}.zip`, entry);
+    } else {
+      // Show essay and dismiss in one click — apply to all 3 copies
+      const di = parseInt(item.dataset.dataIdx);
+      document.querySelectorAll(`.thumb-item[data-data-idx="${di}"]`).forEach(el => {
+        el.classList.add('dismissed');
+        const essay = el.querySelector('.thumb-essay');
+        if (essay) { essay.classList.add('visible'); essay.scrollTop = 0; }
+      });
+      cancelResume();
+      paused = false;
+      panel.classList.add('empty');
+    }
+  }
+
+  for (let rep = 0; rep < 3; rep++) {
+    DATA.forEach((entry, localIdx) => {
+      const item = document.createElement('div');
+      item.className = 'thumb-item';
+      item.dataset.dataIdx = localIdx;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb-img-wrap';
+
+      const img = document.createElement('img');
+      img.dataset.src = entry.thumb_url;
+      img.alt = entry.title;
+      observer.observe(img);
+      img.onerror = () => { item.style.display = 'none'; };
+
+      const num = document.createElement('div');
+      num.className = 'thumb-number';
+      num.textContent = localIdx + 1;
+
+      const essayWords = ESSAY_TEXT.split(/\s+/).filter(Boolean);
+      const essay = document.createElement('div');
+      essay.className = 'thumb-essay';
+      essay.textContent = essayWords[localIdx] || '';
+
+      essay.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      wrap.appendChild(img);
+      wrap.appendChild(essay);
+      item.appendChild(wrap);
+      item.appendChild(num);
+      track.appendChild(item);
+
+      // Mouse events
+      item.addEventListener('mouseenter', () => { hoverThumb = true; showInfo(entry, item); });
+      item.addEventListener('mouseleave', () => startHideInfo(item));
+      item.addEventListener('click', () => doAction(entry, item));
+
+      // Touch events
+      let touchStartX = 0, touchStartY = 0, touchStartPos = 0;
+      let isTouchScroll = false;
+      let infoVisible = false;
+
+      item.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartPos = pos;
+        isTouchScroll = false;
+      }, { passive: true });
+
+      item.addEventListener('touchmove', (e) => {
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        if (!isTouchScroll && Math.abs(dx) > 5) isTouchScroll = true;
+        if (!isTouchScroll && Math.abs(dy) > 5) isTouchScroll = true;
+        if (isTouchScroll) {
+          const delta = Math.abs(dx) >= Math.abs(dy) ? -dx : dy;
+          pos = touchStartPos - delta;
+          if (pos >= singleSetWidth * 2) pos -= singleSetWidth;
+          if (pos < singleSetWidth) pos += singleSetWidth;
+          track.style.transform = `translateX(${-pos}px)`;
+          updateCenterDate();
+        }
+      }, { passive: true });
+
+      item.addEventListener('touchend', (e) => {
+        if (isTouchScroll) return;
+        if (!infoVisible) {
+          document.querySelectorAll('.thumb-item.touch-active').forEach(el => {
+            el.classList.remove('touch-active');
+          });
+          item.classList.add('touch-active');
+          showInfo(entry, item);
+          infoVisible = true;
+        } else {
+          item.classList.remove('touch-active');
+          hideInfo(item);
+          infoVisible = false;
+          doAction(entry, item);
+        }
+      });
+    });
+  }
+
+  // Start at second set
+  pos = singleSetWidth;
+  speed = BASE_SPEED;
+  paused = false;
+
+  let scrubbing = false;
+
+  function animate() {
+    if (!paused || scrubbing) {
+      pos += speed;
+      if (pos >= singleSetWidth * .25) pos -= singleSetWidth;
+      if (pos < singleSetWidth) pos += singleSetWidth;
+      track.style.transform = `translateX(${-pos}px)`;
+      updateProgress();
+      updateCenterDate();
+    }
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+
+  // Strip-level touch scrolling (handles drags starting on gaps between thumbs)
+  let stripTouchStartX = 0, stripTouchStartY = 0, stripTouchStartPos = 0, stripIsDragging = false;
+
+  stripOuter.addEventListener('touchstart', (e) => {
+    if (e.target.closest('.thumb-item')) return;
+    stripTouchStartX = e.touches[0].clientX;
+    stripTouchStartY = e.touches[0].clientY;
+    stripTouchStartPos = pos;
+    stripIsDragging = false;
+  }, { passive: true });
+
+  stripOuter.addEventListener('touchmove', (e) => {
+    if (e.target.closest('.thumb-item')) return;
+    const dx = e.touches[0].clientX - stripTouchStartX;
+    const dy = e.touches[0].clientY - stripTouchStartY;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) stripIsDragging = true;
+    if (stripIsDragging) {
+      const delta = Math.abs(dx) >= Math.abs(dy) ? -dx : dy;
+      pos = stripTouchStartPos - delta;
+      if (pos >= singleSetWidth * 2) pos -= singleSetWidth;
+      if (pos < singleSetWidth) pos += singleSetWidth;
+      track.style.transform = `translateX(${-pos}px)`;
+      updateCenterDate();
+    }
+  }, { passive: true });
+
+  // Progress bar touch seeking
+  progressBg.addEventListener('touchstart', (e) => {
+    const rect = progressBg.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
+    pos = singleSetWidth + pct * singleSetWidth;
+    track.style.transform = `translateX(${-pos}px)`;
+    updateProgress();
+  }, { passive: true });
+
+  function updateProgress() {
+    const normalized = (pos % singleSetWidth) / singleSetWidth;
+    progressFill.style.width = (normalized * 100) + '%';
+    timeCurrent.textContent = formatTime(Math.round(normalized * totalSeconds));
+  }
+
+  // Controls
+  btnRewind.addEventListener('mousedown', (e) => { e.preventDefault(); speed = -SCRUB_SPEED; scrubbing = true; btnRewind.classList.add('active'); });
+  btnFwd.addEventListener('mousedown', (e) => { e.preventDefault(); speed = SCRUB_SPEED; scrubbing = true; btnFwd.classList.add('active'); });
+  btnRewind.addEventListener('touchstart', (e) => { e.preventDefault(); speed = -SCRUB_SPEED; scrubbing = true; btnRewind.classList.add('active'); });
+  btnFwd.addEventListener('touchstart', (e) => { e.preventDefault(); speed = SCRUB_SPEED; scrubbing = true; btnFwd.classList.add('active'); });
+
+  function stopScrub() {
+    scrubbing = false;
+    speed = BASE_SPEED;
+    btnRewind.classList.remove('active');
+    btnFwd.classList.remove('active');
+  }
+  window.addEventListener('mouseup', stopScrub);
+  window.addEventListener('mouseleave', stopScrub);
+  window.addEventListener('touchend', stopScrub);
+
+  let hiddenEssays = [];
+
+  btnRecord.addEventListener('click', () => {
+    recordMode = !recordMode;
+    panel.classList.toggle('mode-record', recordMode);
+    panel.classList.toggle('mode-normal', !recordMode);
+    btnRecord.style.color = recordMode ? '#D22B2B' : '';
+    speed = BASE_SPEED;
+    // Always close the infobox and resume scrolling on mode switch
+    cancelResume();
+    paused = false;
+    hoverThumb = false;
+    hoverPanel = false;
+    panel.classList.add('empty');
+    infoDate.innerHTML = `<span class="label">date</span>`;
+    infoViews.innerHTML = `<span class="label">views</span>`;
+    infoUrl.innerHTML = '';
+    infoCia.innerHTML = '';
+    if (recordMode) {
+      hiddenEssays = Array.from(document.querySelectorAll('.thumb-essay.visible'));
+      hiddenEssays.forEach(el => el.classList.remove('visible'));
+    } else {
+      hiddenEssays.forEach(el => el.classList.add('visible'));
+      hiddenEssays = [];
+    }
+  });
+
+  // Progress bar seek
+  progressBg.addEventListener('click', (e) => {
+    const rect = progressBg.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    pos = singleSetWidth + pct * singleSetWidth;
+    track.style.transform = `translateX(${-pos}px)`;
+    updateProgress();
+  });
+
+  // Mouse wheel scrubbing
+  const WHEEL_SENSITIVITY = 3;
+  stripOuter.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    pos += delta * WHEEL_SENSITIVITY;
+    if (pos >= singleSetWidth * 2) pos -= singleSetWidth;
+    if (pos < singleSetWidth) pos += singleSetWidth;
+    track.style.transform = `translateX(${-pos}px)`;
+    updateProgress();
+    updateCenterDate();
+  }, { passive: false });
+}
+
+  // Popup windows
+  document.getElementById('btnInfo').addEventListener('click', () => {
+    window.open('marion_stokes_info.html', 'info', 'width=620,height=680,resizable=yes,scrollbars=yes');
+  });
+  document.getElementById('btnGuide').addEventListener('click', () => {
+    window.open('marion_stokes_guide.html', 'guide', 'width=620,height=680,resizable=yes,scrollbars=yes');
+  });
+
+</script>
 </body>
 </html>
