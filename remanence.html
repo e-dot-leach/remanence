@@ -75,6 +75,10 @@
     user-select: none;
   }
 
+  #btnRewind { cursor: w-resize; }
+  #btnFwd    { cursor: e-resize; }
+  #btnRecord { cursor: pointer; }
+
   .controls button:hover,
   .controls button.active {
     color: var(--text);
@@ -684,9 +688,14 @@ function init(){
     updateCenterDate();
     if (recordMode) {
       infoCia.innerHTML = buildCiaList(entry);
-      item.style.cursor = 'default';
+      item.style.cursor = 'pointer';
     } else {
-      const dateLabel = stripMonthYearComma(entry.title.replace(/^Marion Stokes Journal\s*\(?(.*?)\)?$/, '$1').trim());
+      let dateLabel = stripMonthYearComma(entry.title.replace(/^Marion Stokes Journal\s*\(?(.*?)\)?$/, '$1').trim());
+      const DATE_OVERRIDES = {
+        'December 19, 1982) and Post-Its from (November 28, and 29, and December 1, 4, 5, 6, 18, 19, 22, and 24, 1982':
+          'December 19, 1982, and Post-Its from Nov. 28 and 29, and Dec. 1, 4, 5, 6, 18, 19, 22, and 24, 1982'
+      };
+      if (DATE_OVERRIDES[dateLabel]) dateLabel = DATE_OVERRIDES[dateLabel];
       infoDate.innerHTML = `<span class="label">date</span>${dateLabel}`;
       infoViews.innerHTML = `<span class="label">views</span>${entry.views}`;
       infoUrl.innerHTML = `<span class="label">url</span><a href="${entry.url}" target="_blank" rel="noopener">${entry.url}</a>`;
