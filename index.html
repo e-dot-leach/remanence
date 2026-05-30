@@ -362,7 +362,22 @@
     .info-row {
       font-size: 0.62rem;
     }
-  }
+  
+    /* eject-mode: TRACKING left-aligned on mobile */
+    #ejectTimeSpacer {
+      visibility: hidden;
+    }
+    #ejectTracking {
+      position: static;
+      transform: none;
+      left: auto;
+      flex: 1;
+      text-align: left;
+    }
+    #ejectTimeRow {
+      justify-content: space-between;
+    }
+}
 
   /* ESSAY OVERLAY */
   .thumb-essay {
@@ -413,6 +428,146 @@
   #btnGuide { left: 1.4rem; }
   #btnInfo  { right: 1.4rem; }
 
+  /* EJECT BUTTON — fixed bottom center, always visible */
+  #btnEject {
+    cursor: pointer;
+    position: fixed;
+    bottom: 1.4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 300;
+    font-family: 'Encode Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+    color: var(--muted);
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #btnEject:hover { color: var(--text); }
+
+  /* In eject-mode, the button text turns white and cursor changes */
+  body.eject-mode #btnEject {
+    color: #FFFFFF;
+    cursor: grab;
+  }
+  body.eject-mode #btnEject:hover {
+    color: #FFFFFF;
+    opacity: 0.75;
+    cursor: grab;
+  }
+  body.eject-mode #btnEject:active {
+    cursor: grabbing;
+    opacity: 1;
+  }
+
+  /* FADE OVERLAY — blue field with grain */
+  #ejectOverlay {
+    position: fixed;
+    inset: 0;
+    background: #0066FF;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  #ejectOverlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Grain canvas — fixed to viewport */
+  #ejectGrain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.09;
+  }
+
+  /* Tracking lines canvas */
+  #ejectLines {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 211;
+    opacity: 0;
+    transition: opacity 0.4s ease 0.3s;
+  }
+  body.eject-mode #ejectLines {
+    opacity: 1;
+  }
+
+  /* OSD shared style — off-white */
+  .eject-osd {
+    font-family: 'VCR OSD Mono', 'DM Mono', 'Courier New', monospace;
+    color: #E8E8F0;
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden; /* for clip-path scanline reveal */
+  }
+
+  /* NO INPUT (eject-mode) text — JS sets top; scanline reveal via clip-path */
+  .no-input-text {
+    text-shadow: 2px 2px 0px #00083A, -1px -1px 0px #00083A;
+    font-size: 2.4rem;
+    font-weight: 1000;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 212;
+    clip-path: inset(0 0 100% 0); /* fully hidden top-to-bottom — JS reveals downward */
+    transition: none;
+  }
+  body.eject-mode .no-input-text {
+    /* JS drives the clip-path animation */
+  }
+
+  /* EJECT PROGRESS BAR */
+  #ejectProgressWrap {
+    position: fixed;
+    left: 0;
+    right: 0;
+    padding: 0 40px;
+    z-index: 212;
+    clip-path: inset(0 0 100% 0);
+    transition: none;
+  }
+
+  #ejectProgressTrack {
+    width: 100%;
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    white-space: pre;
+    overflow: hidden;
+    line-height: 1;
+  }
+
+  /* Time row beneath the bar */
+  #ejectTimeRow {
+    margin-top: 7px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+  }
+
+  #ejectTracking {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
 </style>
 </head>
 <body>
@@ -430,6 +585,22 @@
       <button id="btnFwd" data-full="fast-forward" data-short="fwd">fast-forward</button>
     </div>
     <span id="centerDate"></span>
+  </div>
+
+  <!-- EJECT BUTTON (fixed bottom center) -->
+  <button id="btnEject">eject</button>
+
+  <!-- EJECT MODE OVERLAYS -->
+  <div id="ejectOverlay"><canvas id="ejectGrain"></canvas></div>
+  <canvas id="ejectLines"></canvas>
+  <div class="no-input-text eject-osd">NO INPUT</div>
+  <div id="ejectProgressWrap" class="eject-osd">
+    <div id="ejectProgressTrack"></div>
+    <div id="ejectTimeRow">
+      <span id="ejectTimeSpacer" style="visibility:hidden">0:00:00</span>
+      <span id="ejectTracking">TRACKING...</span>
+      <span>0:00:00</span>
+    </div>
   </div>
 
   <div class="strip-outer" id="stripOuter">
@@ -464,7 +635,7 @@
 let DATA = [];
 let CIA = [];
 
-const ESSAY_TEXT = `Remanence refers to the residual magnetism left in a ferromagnetic material (like iron, nickel, cobalt, and other rare-earth metals or alloys) after a magnetomotive force has been removed. On a magnetized medium, information can be stored on a physical storage medium without constant power: non-volatile memory. The same fundamental principle links all forms of magnetic storage: floppy disks, videocassettes, and hard disk drives. The magnetic mylar tape in VHS cassettes suspends magnetic particles (like ferric oxide, doped iron oxide, chromium dioxide, and metallic particles like elemental iron, cobalt, and/or nickel) in a polymer binder. Chromium, found primarily in southern Africa and Zimbabwe, supposedly produces a cleaner sound quality than ferric oxides but creates more toxic by-products. Manufacturers began blending chrome-oxide with cobalt-modified iron oxides on magnetic tapes. Hard disk drives also shifted from an iron-oxide base to a cobalt-based alloy. The Democratic Republic of the Congo produces over sixty percent of the world's cobalt. There are many possible points of failure for VHS cassettes (mold growth, sticky shed syndrome, oxide shedding, physical damage) but all magnetic media has a degradation limit. Eventually, the magnetic information will lose its charge. Iron oxide and cobalt-modified iron oxide are the most stable magnetic particles, but are often used in lower grade VHS videotapes. Over time, the magnetic particles in the binding lose their charge in a process known as remanence decay: colors fade, pictures blur, static noise spreads. The information is still “there” but has become unreadable. Depending on their storage and usage conditions, you’ll find a persistent argument that VHS cassettes only last ten to thirty years before significant degradation. (Of course, the loudest of these arguments come from home video digitization services.) With digital information, data remanence refers to the residual presence of data even after it has been erased. The physical properties of storage media can keep a memory of previously written data. Often, deleted data will remain—even if the information appears “gone”—until the operating system uses the space and rewrites new data over it. In the digital age, data remanence can make deleted sensitive information vulnerable to exposure. To ensure that deleted information is truly gone, it must be cleared, purged, destroyed, overwritten, or encrypted. Before its use in the field of magnetism, the word “remanence” was used to refer to the lasting effect or residual presence of something: something enduring, a kind of persisting, even the remaining presence of a disease. Remanence comes from the word “remain”: that which is left behind or what is left after life is gone. Nothing remains.`;
+const ESSAY_TEXT = `Remanence refers to the residual magnetism left in a ferromagnetic material (like iron, nickel, cobalt, and other rare-earth metals or alloys) after a magnetomotive force has been removed. On a magnetized medium, information can be stored on a physical storage medium without constant power: non-volatile memory. The same fundamental principle links all forms of magnetic storage: floppy disks, videocassettes, and hard disk drives. The magnetic mylar tape in VHS cassettes suspends magnetic particles (like ferric oxide, doped iron oxide, chromium dioxide, and metallic particles like elemental iron, cobalt, and/or nickel) in a polymer binder. Chromium, found primarily in southern Africa and Zimbabwe, supposedly produces a cleaner sound quality than ferric oxides but creates more toxic by-products. Manufacturers began blending chrome-oxide with cobalt-modified iron oxides on magnetic tapes. Hard disk drives also shifted from an iron-oxide base to a cobalt-based alloy. The Democratic Republic of the Congo produces over sixty percent of the world's cobalt. There are many possible points of failure for VHS cassettes (mold growth, sticky shed syndrome, oxide shedding, physical damage) but all magnetic media has a degradation limit. Eventually, the magnetic information will lose its charge. Iron oxide and cobalt-modified iron oxide are the most stable magnetic particles, but are often used in lower grade VHS videotapes. Over time, the magnetic particles in the binding lose their alignment in a process known as remanence decay: colors fade, pictures blur, static noise spreads. The information is still “there” but has become unreadable. Depending on their storage and usage conditions, you’ll find a persistent argument that VHS cassettes only last ten to thirty years before significant degradation. (Of course, the loudest and most insistent arguments come from home video digitization services.) With digital information, data remanence refers to the residual presence of data even after it has been erased. The physical properties of storage media can keep a memory of previously written data. Often, deleted data will remain—even if the information appears “gone”—until the operating system uses the space and rewrites new data over it. In the digital age, data remanence can make deleted sensitive information vulnerable to exposure. To ensure that deleted information is truly gone, it must be cleared, purged, destroyed, overwritten, or encrypted. Before its use in the field of magnetism, the word “remanence” was used to refer to the lasting effect or residual presence of something: something enduring, a kind of persisting, even the remaining presence of a disease. Remanence comes from the word “remain”: that which is left behind or what is left after life is gone.`;
 
 Promise.all([
   fetch('assets/marion_journal.json').then(res => res.json()),
@@ -957,6 +1128,298 @@ function init(){
     window.open('marion_stokes_guide.html', 'guide', 'width=620,height=680,resizable=yes,scrollbars=yes');
   });
 
-</script>
-</body>
+  // ── EJECT / INSERT ────────────────────────────────────────────────────────
+  const btnEject       = document.getElementById('btnEject');
+  const ejectOverlay   = document.getElementById('ejectOverlay');
+  const noInputText    = document.querySelector('.no-input-text');
+  const ejectProgressWrap = document.getElementById('ejectProgressWrap');
+  const grainCanvas    = document.getElementById('ejectGrain');
+  const linesCanvas    = document.getElementById('ejectLines');
+  const linesCtx       = linesCanvas.getContext('2d');
+  const grainCtx       = grainCanvas.getContext('2d');
+  let ejectMode        = false;
+  let ejectAnimFrame   = null;
+
+  // ── Grain ──────────────────────────────────────────────────────────────
+  function resizeGrain() {
+    grainCanvas.width  = window.innerWidth;
+    grainCanvas.height = window.innerHeight;
+  }
+  function drawGrain() {
+    const w = grainCanvas.width, h = grainCanvas.height;
+    const img = grainCtx.createImageData(w, h);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255 | 0;
+      img.data[i] = img.data[i+1] = img.data[i+2] = v;
+      img.data[i+3] = 255;
+    }
+    grainCtx.putImageData(img, 0, 0);
+  }
+  let grainTimer = null;
+  function startGrain() {
+    resizeGrain();
+    function tick() { drawGrain(); grainTimer = setTimeout(tick, 80); }
+    tick();
+  }
+  function stopGrain() { clearTimeout(grainTimer); grainTimer = null; }
+
+  // ── Tracking lines ─────────────────────────────────────────────────────
+  // Fixed-position lines that flicker on/off; no drifting
+  const trackingLines = [];
+  function resizeLines() {
+    linesCanvas.width  = window.innerWidth;
+    linesCanvas.height = window.innerHeight;
+  }
+  function spawnLine() {
+    trackingLines.push({
+      y:          Math.random() * window.innerHeight,
+      alpha:      Math.random() * 0.55 + 0.25,
+      thickness:  Math.random() < 0.4 ? 2 : 1,
+      hasDouble:  Math.random() < 0.35,
+      visible:    true,
+      onDuration:  Math.random() * 600 + 200,
+      offDuration: Math.random() * 4000 + 3000,
+      timer: null,
+    });
+  }
+  function scheduleLineFlicker(l) {
+    if (!ejectMode) return;
+    if (l.visible) {
+      // currently on — schedule turn-off
+      l.timer = setTimeout(() => {
+        l.visible = false;
+        scheduleLineFlicker(l);
+      }, l.onDuration);
+    } else {
+      // currently off — schedule turn-on (new random position)
+      l.timer = setTimeout(() => {
+        l.y = Math.random() * window.innerHeight;
+        l.alpha = Math.random() * 0.55 + 0.25;
+        l.visible = true;
+        scheduleLineFlicker(l);
+      }, l.offDuration);
+    }
+  }
+  function initLines() {
+    // Spawn a small fixed pool of lines (2-3)
+    trackingLines.length = 0;
+    const count = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      // stagger initial visibility
+      const l = {
+        y:          Math.random() * window.innerHeight,
+        alpha:      Math.random() * 0.55 + 0.25,
+        thickness:  Math.random() < 0.4 ? 2 : 1,      // mostly 1px, occasionally 2px
+        hasDouble:  Math.random() < 0.35,               // ~1/3 get a faint shadow stripe
+        visible:    false,
+        onDuration:  Math.random() * 600 + 200,
+        offDuration: Math.random() * 4000 + 3000,
+        timer: null,
+      };
+      // Stagger first appearance
+      l.timer = setTimeout(() => {
+        l.visible = true;
+        scheduleLineFlicker(l);
+      }, Math.random() * 6000 + 1000);
+      trackingLines.push(l);
+    }
+  }
+  function stopLines() {
+    trackingLines.forEach(l => { if (l.timer) clearTimeout(l.timer); });
+    trackingLines.length = 0;
+  }
+  function drawTrackingLine(l) {
+    const w = linesCanvas.width;
+    // Horizontal gradient: transparent → white (peaking off-center) → transparent
+    // Peak is slightly left of center to feel organic
+    const peakX = w * (0.35 + Math.random() * 0.25);
+    const grad = linesCtx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0,                          `rgba(255,255,255,0)`);
+    grad.addColorStop(Math.max(0, peakX/w - 0.18), `rgba(255,255,255,0)`);
+    grad.addColorStop(peakX / w,                   `rgba(255,255,255,${l.alpha})`);
+    grad.addColorStop(Math.min(1, peakX/w + 0.30), `rgba(255,255,255,${l.alpha * 0.15})`);
+    grad.addColorStop(1,                           `rgba(255,255,255,0)`);
+
+    linesCtx.beginPath();
+    linesCtx.strokeStyle = grad;
+    linesCtx.lineWidth = l.thickness;
+    linesCtx.moveTo(0, l.y);
+    linesCtx.lineTo(w, l.y);
+    linesCtx.stroke();
+
+    // Some lines have a faint secondary stripe just below (+1–2px), thinner
+    if (l.hasDouble) {
+      const grad2 = linesCtx.createLinearGradient(0, 0, w, 0);
+      grad2.addColorStop(0,                          `rgba(255,255,255,0)`);
+      grad2.addColorStop(Math.max(0, peakX/w - 0.12), `rgba(255,255,255,0)`);
+      grad2.addColorStop(peakX / w,                   `rgba(255,255,255,${l.alpha * 0.35})`);
+      grad2.addColorStop(Math.min(1, peakX/w + 0.22), `rgba(255,255,255,0)`);
+      grad2.addColorStop(1,                           `rgba(255,255,255,0)`);
+      linesCtx.beginPath();
+      linesCtx.strokeStyle = grad2;
+      linesCtx.lineWidth = 0.75;
+      linesCtx.moveTo(0, l.y + l.thickness + 1);
+      linesCtx.lineTo(w, l.y + l.thickness + 1);
+      linesCtx.stroke();
+    }
+  }
+
+  function animateLines() {
+    if (!ejectMode) return;
+    linesCtx.clearRect(0, 0, linesCanvas.width, linesCanvas.height);
+    trackingLines.forEach(l => {
+      if (!l.visible) return;
+      drawTrackingLine(l);
+    });
+    requestAnimationFrame(animateLines);
+  }
+
+  // ── Scanline reveal (clip-path top-to-bottom) ──────────────────────────
+  function scanlineReveal(el, delay, duration) {
+    const start = performance.now() + delay;
+    function frame(now) {
+      const elapsed = Math.max(0, now - start);
+      const pct = Math.min(1, elapsed / duration);
+      // inset(top right bottom left) — shrink bottom inset from 100% → 0%
+      // so content is revealed progressively from top downward
+      const bottom = Math.round((1 - pct) * 100);
+      el.style.clipPath = `inset(0 0 ${bottom}% 0)`;
+      if (pct < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ── Position eject elements to match real layout ───────────────────────
+  function positionEjectElements() {
+    const controlsEl = document.querySelector('.controls');
+    if (controlsEl) {
+      const cr = controlsEl.getBoundingClientRect();
+      noInputText.style.top = (cr.top + cr.height / 2) + 'px';
+    }
+    const progressEl = document.getElementById('progressWrap');
+    if (progressEl) {
+      const pr = progressEl.getBoundingClientRect();
+      ejectProgressWrap.style.top = pr.top + 'px';
+    }
+  }
+
+  // ── Playhead step animation ────────────────────────────────────────────
+  let ejectStep = 0;
+  let ejectStepTotal = 60;
+  const EJECT_STEP_INTERVAL = 2200;
+
+  function buildEjectBar(step, total) {
+    const chars = [];
+    for (let i = 0; i < total; i++) chars.push(i === step ? '*' : '-');
+    return chars.join(' ');
+  }
+  function renderEjectBar() {
+    document.getElementById('ejectProgressTrack').textContent =
+      buildEjectBar(ejectStep, ejectStepTotal);
+  }
+  function stepEjectPlayhead() {
+    if (!ejectMode) return;
+    ejectStep = (ejectStep + 1) % ejectStepTotal;
+    renderEjectBar();
+    ejectAnimFrame = setTimeout(stepEjectPlayhead, EJECT_STEP_INTERVAL);
+  }
+  function startEjectAnimation() {
+    const trackEl = document.getElementById('ejectProgressTrack');
+    const testSpan = document.createElement('span');
+    testSpan.style.cssText = 'position:absolute;visibility:hidden;font-family:"VCR OSD Mono","DM Mono","Courier New",monospace;font-size:0.58rem;letter-spacing:0.12em;white-space:pre;';
+    testSpan.textContent = '- ';
+    document.body.appendChild(testSpan);
+    const charW = testSpan.offsetWidth;
+    document.body.removeChild(testSpan);
+    ejectStepTotal = Math.max(10, Math.floor(trackEl.offsetWidth / charW));
+    ejectStep = 0;
+    renderEjectBar();
+    if (ejectAnimFrame) clearTimeout(ejectAnimFrame);
+    ejectAnimFrame = setTimeout(stepEjectPlayhead, EJECT_STEP_INTERVAL);
+  }
+
+  window.addEventListener('resize', () => {
+    if (!ejectMode) return;
+    positionEjectElements();
+    resizeLines();
+    resizeGrain();
+    const trackEl = document.getElementById('ejectProgressTrack');
+    const testSpan = document.createElement('span');
+    testSpan.style.cssText = 'position:absolute;visibility:hidden;font-family:"VCR OSD Mono","DM Mono","Courier New",monospace;font-size:0.58rem;letter-spacing:0.12em;white-space:pre;';
+    testSpan.textContent = '- ';
+    document.body.appendChild(testSpan);
+    const charW = testSpan.offsetWidth;
+    document.body.removeChild(testSpan);
+    const newTotal = Math.max(10, Math.floor(trackEl.offsetWidth / charW));
+    ejectStep = Math.round((ejectStep / ejectStepTotal) * newTotal) % newTotal;
+    ejectStepTotal = newTotal;
+    renderEjectBar();
+  });
+
+  // ── Main eject/insert handler ──────────────────────────────────────────
+  btnEject.addEventListener('click', () => {
+    if (ejectMode) {
+      // INSERT: reset content then fade blue overlay out
+      document.querySelectorAll('.thumb-item.dismissed').forEach(el => {
+        el.classList.remove('dismissed');
+        const essay = el.querySelector('.thumb-essay');
+        if (essay) essay.classList.remove('visible');
+        el.style.cursor = '';
+      });
+      const panel = document.getElementById('infoPanel');
+      panel.classList.add('empty');
+      panel.classList.remove('mode-record');
+      panel.classList.add('mode-normal');
+      document.getElementById('infoDate').innerHTML  = '<span class="label">date</span>';
+      document.getElementById('infoViews').innerHTML = '<span class="label">views</span>';
+      document.getElementById('infoUrl').innerHTML   = '';
+      document.getElementById('infoCia').innerHTML   = '';
+      document.getElementById('btnRecord').style.color = '';
+      recordMode = false;
+      paused = false;
+      speed = BASE_SPEED;
+
+      if (ejectAnimFrame) { clearTimeout(ejectAnimFrame); ejectAnimFrame = null; }
+      stopGrain();
+      stopLines();
+
+      document.body.classList.remove('eject-mode');
+      ejectMode = false;
+      btnEject.textContent = 'eject';
+      // Reset clip-paths for next entry
+      noInputText.style.clipPath      = 'inset(0 0 100% 0)';
+      ejectProgressWrap.style.clipPath = 'inset(0 0 100% 0)';
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        ejectOverlay.classList.remove('visible');
+      }));
+
+    } else {
+      // EJECT: fade overlay in, then show eject content with VHS effects
+      ejectMode = true;
+      paused = true;
+      resizeLines();
+      resizeGrain();
+      ejectOverlay.classList.add('visible');
+      startGrain();
+
+      setTimeout(() => {
+        positionEjectElements();
+        document.body.classList.add('eject-mode');
+        btnEject.textContent = 'insert';
+
+        // Scanline reveal — NO INPUT first, then progress bar ~150ms later
+        scanlineReveal(noInputText,      0,   520);
+        scanlineReveal(ejectProgressWrap, 160, 400);
+
+        // Start tracking lines and playhead
+        initLines();
+        animateLines();
+        startEjectAnimation();
+      }, 500);
+    }
+  });
+
+
+</script></body>
 </html>
