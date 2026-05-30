@@ -188,7 +188,6 @@ def make_cia_csv(savename='cia_journal_links.csv',journal_csv='marion_journal.cs
                         data['pages'] = item['imagecount']
                     else:
                         data['pages'] = -1
-
                     if 'identifier-access' in item.keys():
                         data['url'] = item['identifier-access']
                         data['first_page_url'] = get_cia_first_image(item)
@@ -199,7 +198,7 @@ def make_cia_csv(savename='cia_journal_links.csv',journal_csv='marion_journal.cs
                     writer.writerow(data)
                 except Exception as e:
                     tqdm.write(f'Found error {e}. Skipping {item}')
-                    
+   
 if __name__ == "__main__":
     #make_marion_journal_csv('marion_journal.csv')
     #make_cia_csv()
