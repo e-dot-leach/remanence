@@ -1104,12 +1104,12 @@ function init(){
   }, { passive: false });
 }
 
-  // Popup windows
-  document.getElementById('btnInfo').addEventListener('click', () => {
-    window.open('marion_stokes_info.html', 'info', 'width=620,height=680,resizable=yes,scrollbars=yes');
+  // Popup windows: Information and Guide (open centered, with scrollbars and resizable)
+    document.getElementById('btnGuide').addEventListener('click', () => {
+    window.open('remanence_guide.html', 'guide', 'width=700,height=680,resizable=yes,scrollbars=yes');
   });
-  document.getElementById('btnGuide').addEventListener('click', () => {
-    window.open('marion_stokes_guide.html', 'guide', 'width=620,height=680,resizable=yes,scrollbars=yes');
+  document.getElementById('btnInfo').addEventListener('click', () => {
+    window.open('remanence_info.html', 'info', 'width=620,height=680,resizable=yes,scrollbars=yes');
   });
 
   // ── EJECT / INSERT ────────────────────────────────────────────────────────
