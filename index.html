@@ -527,10 +527,6 @@
     transform: translate(-50%, -50%);
     z-index: 212;
     clip-path: inset(0 0 100% 0); /* fully hidden top-to-bottom — JS reveals downward */
-    transition: none;
-  }
-  body.eject-mode .no-input-text {
-    /* JS drives the clip-path animation */
   }
 
   /* EJECT PROGRESS BAR */
@@ -553,7 +549,7 @@
     line-height: 1;
   }
 
-  /* Time row beneath the bar */
+  /* EJECT ROW beneath the bar */
   #ejectTimeRow {
     margin-top: 7px;
     display: flex;
