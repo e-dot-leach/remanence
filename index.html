@@ -785,7 +785,7 @@ function downloadCsv(filename, content) {
 //   a.download = randomDoc.identifier + '.pdf';
 //   a.click();
 // }
-async function downloadRandomPDF(entry) {
+function downloadRandomPDF(entry) {
   const docs = CIA[entry.identifier] || [];
   const randomDoc = docs.length > 0 ? docs[Math.floor(Math.random() * docs.length)] : null;
   
@@ -794,30 +794,8 @@ async function downloadRandomPDF(entry) {
     return;
   }
 
-  try {
-    // 1. Fetch the file from the cross-origin URL
-    const response = await fetch(randomDoc.pdf_url);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    
-    // 2. Convert the response into a local blob URL
-    const blob = await response.blob();
-    const localUrl = URL.createObjectURL(blob);
-    
-    // 3. Trigger the download using the local same-origin URL
-    const a = document.createElement('a');
-    a.href = localUrl;
-    a.download = (randomDoc.identifier || 'download') + '.pdf';
-    document.body.appendChild(a);
-    a.click();
-    
-    // 4. Clean up the DOM and memory
-    document.body.removeChild(a);
-    URL.revokeObjectURL(localUrl);
-  } catch (error) {
-    console.error('Download failed:', error);
-    // Fallback: Open in new tab if fetch is blocked by CORS
-    window.open(randomDoc.pdf_url, '_blank');
-  }
+  // Standard browser navigation completely bypasses CORS restrictions
+  window.open(randomDoc.pdf_url, '_blank');
 }
 
 
